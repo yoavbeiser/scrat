@@ -10,9 +10,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scrat", "Scrat\Scrat.csproj
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scrat.Core.Tests", "Scrat.Core.Tests\Scrat.Core.Tests.csproj", "{303AAB79-7DF3-40BA-9E18-FABF21183DC9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scrat.Exporters.Smb.Tests", "tests\Scrat.Exporters.Smb.Tests\Scrat.Exporters.Smb.Tests.csproj", "{12165C22-B2B2-43E9-B3D1-80BC652E61C9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scrat.Exporters.Smb.Tests", "Scrat.Exporters.Smb.Tests\Scrat.Exporters.Smb.Tests.csproj", "{12165C22-B2B2-43E9-B3D1-80BC652E61C9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scrat.Exporters.Ftp.Tests", "tests\Scrat.Exporters.Ftp.Tests\Scrat.Exporters.Ftp.Tests.csproj", "{54C23DEE-F99E-463A-9D26-8963093061F1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scrat.Exporters.Ftp.Tests", "Scrat.Exporters.Ftp.Tests\Scrat.Exporters.Ftp.Tests.csproj", "{54C23DEE-F99E-463A-9D26-8963093061F1}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{0BA93324-41F2-4795-9949-615F4950354F}"
 	ProjectSection(SolutionItems) = preProject
