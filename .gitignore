@@ -1,0 +1,35 @@
+# Build outputs
+bin/
+obj/
+
+# .NET
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Rider / JetBrains
+.idea/
+
+# Visual Studio
+.vs/
+*.rsuser
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# NuGet
+packages/
+*.nupkg
+.nuget/
+
+# Logs
+*.log
