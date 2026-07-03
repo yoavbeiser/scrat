@@ -1,20 +1,28 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scrat.Core", "Scrat.Core\Scrat.Core.csproj", "{5E024623-71EB-4130-AFAC-8A0326AE672D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scrat.Core", "src\Scrat.Core\Scrat.Core.csproj", "{5E024623-71EB-4130-AFAC-8A0326AE672D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scrat.Exporters.Smb", "Scrat.Exporters.Smb\Scrat.Exporters.Smb.csproj", "{402A793C-6A05-4D96-B303-A8BB4856E0BA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scrat.Exporters.Smb", "src\Scrat.Exporters.Smb\Scrat.Exporters.Smb.csproj", "{402A793C-6A05-4D96-B303-A8BB4856E0BA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scrat.Exporters.Ftp", "Scrat.Exporters.Ftp\Scrat.Exporters.Ftp.csproj", "{7739E49E-8554-4E50-8AB0-D0991AFF501B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scrat.Exporters.Ftp", "src\Scrat.Exporters.Ftp\Scrat.Exporters.Ftp.csproj", "{7739E49E-8554-4E50-8AB0-D0991AFF501B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scrat", "Scrat\Scrat.csproj", "{CE19E518-445E-4807-BDF6-E9534699C38D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scrat", "src\Scrat\Scrat.csproj", "{CE19E518-445E-4807-BDF6-E9534699C38D}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scrat.Core.Tests", "tests\Scrat.Core.Tests\Scrat.Core.Tests.csproj", "{303AAB79-7DF3-40BA-9E18-FABF21183DC9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scrat.Core.Tests", "Scrat.Core.Tests\Scrat.Core.Tests.csproj", "{303AAB79-7DF3-40BA-9E18-FABF21183DC9}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scrat.Exporters.Smb.Tests", "tests\Scrat.Exporters.Smb.Tests\Scrat.Exporters.Smb.Tests.csproj", "{12165C22-B2B2-43E9-B3D1-80BC652E61C9}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scrat.Exporters.Ftp.Tests", "tests\Scrat.Exporters.Ftp.Tests\Scrat.Exporters.Ftp.Tests.csproj", "{54C23DEE-F99E-463A-9D26-8963093061F1}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{0BA93324-41F2-4795-9949-615F4950354F}"
+	ProjectSection(SolutionItems) = preProject
+		Dockerfile = Dockerfile
+		README.md = README.md
+		Scrat.sln.DotSettings.user = Scrat.sln.DotSettings.user
+		Directory.Build.props = Directory.Build.props
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{5D666C62-6236-427C-A428-C15178986170}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -115,12 +123,8 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{5E024623-71EB-4130-AFAC-8A0326AE672D} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
-		{402A793C-6A05-4D96-B303-A8BB4856E0BA} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
-		{7739E49E-8554-4E50-8AB0-D0991AFF501B} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
-		{CE19E518-445E-4807-BDF6-E9534699C38D} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
-		{303AAB79-7DF3-40BA-9E18-FABF21183DC9} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
-		{12165C22-B2B2-43E9-B3D1-80BC652E61C9} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
-		{54C23DEE-F99E-463A-9D26-8963093061F1} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{303AAB79-7DF3-40BA-9E18-FABF21183DC9} = {5D666C62-6236-427C-A428-C15178986170}
+		{54C23DEE-F99E-463A-9D26-8963093061F1} = {5D666C62-6236-427C-A428-C15178986170}
+		{12165C22-B2B2-43E9-B3D1-80BC652E61C9} = {5D666C62-6236-427C-A428-C15178986170}
 	EndGlobalSection
 EndGlobal
