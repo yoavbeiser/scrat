@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Scrat.Core.Abstractions;
+using Scrat.Core.Deserialization.Abstractions;
 using Scrat.Core.Models;
 
 namespace Scrat.Core.Deserialization;

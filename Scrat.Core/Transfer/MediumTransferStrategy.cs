@@ -1,8 +1,11 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Scrat.Core.Abstractions;
 using Scrat.Core.Configuration;
+using Scrat.Core.Exporting;
+using Scrat.Core.Exporting.Abstractions;
 using Scrat.Core.Models;
+using Scrat.Core.S3;
+using Scrat.Core.Transfer.Abstractions;
 
 namespace Scrat.Core.Transfer;
 
@@ -29,7 +32,7 @@ public sealed class MediumTransferStrategy(IOptions<TransferOptions> options, IL
         var raw = new ReadOnlyMemory<byte>(buffer.GetBuffer(), 0, (int)buffer.Length);
         var data = match.Endpoint.RequireDeserializer().Deserialize(raw);
 
-        logger.LogDebug("Writing {Bytes} bytes for key {Key} in slices of {ChunkSize}", data.Content.Length, key, transferOptions.MediumWriteChunkSizeBytes);
-        await exporter.WriteChunkedAsync(data, key, transferOptions.MediumWriteChunkSizeBytes, cancellationToken).ConfigureAwait(false);
+        logger.LogDebug("Writing {Bytes} bytes for key {Key}", data.Content.Length, key);
+        await exporter.WriteAsync(data, key, cancellationToken).ConfigureAwait(false);
     }
 }

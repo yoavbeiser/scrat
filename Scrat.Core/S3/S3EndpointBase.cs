@@ -1,10 +1,12 @@
-using Scrat.Core.Abstractions;
+using Scrat.Core.Deserialization;
+using Scrat.Core.Deserialization.Abstractions;
 using Scrat.Core.Models;
+using Scrat.Core.S3.Abstractions;
 
 namespace Scrat.Core.S3;
 
 /// <summary>Common wiring for the three cluster endpoints; subclasses supply the bucket naming rule.</summary>
-public abstract class S3EndpointBase(IS3Reader reader, IDataDeserializer? deserializer) : IS3Endpoint
+public abstract class S3EndpointBase(IS3Reader reader, IDataDeserializer? deserializer, BucketInfo bucketInfo) : IS3Endpoint
 {
     public abstract SizeCategory HandledSizeCategory { get; }
 
@@ -12,5 +14,5 @@ public abstract class S3EndpointBase(IS3Reader reader, IDataDeserializer? deseri
 
     public IS3Reader Reader { get; } = reader ?? throw new ArgumentNullException(nameof(reader));
 
-    public abstract string? ResolveBucketName(string key);
+    public BucketInfo BucketInfo { get; } = bucketInfo ?? throw new ArgumentNullException(nameof(bucketInfo));
 }

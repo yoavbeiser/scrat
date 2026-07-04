@@ -1,4 +1,7 @@
-namespace Scrat.Core.Abstractions;
+using Scrat.Core.Deserialization.Abstractions;
+using Scrat.Core.S3.Abstractions;
+
+namespace Scrat.Core.S3;
 
 public static class S3EndpointExtensions
 {

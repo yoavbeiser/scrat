@@ -1,14 +1,17 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Scrat.Core.Abstractions;
 using Scrat.Core.Configuration;
+using Scrat.Core.Exporting.Abstractions;
 using Scrat.Core.Models;
+using Scrat.Core.S3.Abstractions;
+using Scrat.Core.Services.Abstractions;
+using Scrat.Core.Transfer.Abstractions;
 
 namespace Scrat.Core.Services;
 
 /// <summary>Orchestrates a transfer request: fans keys out concurrently and aggregates outcomes.</summary>
 public sealed class ScratService(
-    IS3EndpointComposite endpointComposite,
+    IS3EndpointResolver endpointResolver,
     ITransferStrategySelector strategySelector,
     IExporterResolver exporterResolver,
     IOptions<TransferOptions> transferOptions,
@@ -40,7 +43,7 @@ public sealed class ScratService(
     {
         try
         {
-            var match = await endpointComposite.FindEndpointAsync(key, cancellationToken).ConfigureAwait(false);
+            var match = await endpointResolver.FindEndpointAsync(key, cancellationToken).ConfigureAwait(false);
             if (match is null)
             {
                 logger.LogWarning("Key {Key} was not found on any cluster", key);

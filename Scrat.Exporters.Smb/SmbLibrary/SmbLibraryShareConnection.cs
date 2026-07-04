@@ -14,6 +14,9 @@ public sealed class SmbLibraryShareConnection(SMB2Client client, ISMBFileStore f
     public Task<ISmbFileHandle> OpenExistingAsync(string fileName, CancellationToken cancellationToken = default) =>
         OpenAsync(fileName, CreateDisposition.FILE_OPEN, cancellationToken);
 
+    // CR: DisposeAsync does synchronous network I/O (Disconnect/Logoff) then returns a completed
+    //     ValueTask — it blocks the caller and isn't actually async. Wrap in Task.Run like the other
+    //     ops, or document that teardown is intentionally synchronous.
     public ValueTask DisposeAsync()
     {
         try

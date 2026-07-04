@@ -1,6 +1,6 @@
 using System.Collections.Frozen;
-using Scrat.Core.Abstractions;
 using Scrat.Core.Models;
+using Scrat.Core.Transfer.Abstractions;
 
 namespace Scrat.Core.Transfer;
 

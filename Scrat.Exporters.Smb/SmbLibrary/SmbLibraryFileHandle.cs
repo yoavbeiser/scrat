@@ -18,6 +18,9 @@ public sealed class SmbLibraryFileHandle(ISMBFileStore fileStore, object handle,
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var sliceLength = Math.Min(maxWriteSize, data.Length - written);
+                // CR: .ToArray() copies every slice into a fresh byte[] on each write (SMBLibrary needs
+                //     byte[]). For large streamed objects this is a lot of short-lived allocations/GC
+                //     pressure. Consider a reused buffer or an overload that takes ReadOnlyMemory/Span.
                 var status = fileStore.WriteFile(
                     out var bytesWritten,
                     handle,

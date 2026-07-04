@@ -1,7 +1,7 @@
 using System.Net;
 using Amazon.S3;
 using Amazon.S3.Model;
-using Scrat.Core.Abstractions;
+using Scrat.Core.S3.Abstractions;
 
 namespace Scrat.Core.S3;
 

@@ -6,14 +6,17 @@ using Microsoft.Extensions.Options;
 using Polly;
 using Polly.Registry;
 using Polly.Retry;
-using Scrat.Core.Abstractions;
 using Scrat.Core.Configuration;
 using Scrat.Core.Deserialization;
 using Scrat.Core.Exporting;
+using Scrat.Core.Exporting.Abstractions;
 using Scrat.Core.Resilience;
 using Scrat.Core.S3;
+using Scrat.Core.S3.Abstractions;
 using Scrat.Core.Services;
+using Scrat.Core.Services.Abstractions;
 using Scrat.Core.Transfer;
+using Scrat.Core.Transfer.Abstractions;
 
 namespace Scrat.Core.DependencyInjection;
 
@@ -43,7 +46,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IS3Endpoint>(sp => new LargeS3Endpoint(
             CreateReader(sp, o => o.Large)));
 
-        services.AddSingleton<IS3EndpointComposite, S3EndpointComposite>();
+        services.AddSingleton<IS3EndpointResolver, S3EndpointResolver>();
 
         services.AddSingleton<ITransferStrategy, SmallTransferStrategy>();
         services.AddSingleton<ITransferStrategy, MediumTransferStrategy>();

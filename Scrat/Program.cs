@@ -1,9 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Scrat.Core.Abstractions;
 using Scrat.Core.DependencyInjection;
 using Scrat.Core.Models;
+using Scrat.Core.Services;
+using Scrat.Core.Services.Abstractions;
 using Scrat.Exporters.Ftp.DependencyInjection;
 using Scrat.Exporters.Smb.DependencyInjection;
 
@@ -55,6 +56,7 @@ catch (Exception ex)
 
 foreach (var key in result.Keys)
 {
+    // CR: status labels are not column-aligned ([OK      ] vs [NOT_FOUND] vs [FAILED  ]) — output looks ragged.
     Console.WriteLine(key.Status switch
     {
         KeyStatus.Ok => $"[OK      ] {key.Key}",
@@ -66,4 +68,7 @@ foreach (var key in result.Keys)
 Console.WriteLine();
 Console.WriteLine($"{result.OkCount} ok  |  {result.NotFoundCount} not found  |  {result.FailedCount} failed");
 
+// CR: AllSucceeded is true only when every key is Ok, so a NotFound key yields exit code 1 — i.e.
+//     "key doesn't exist" is reported the same as a real transfer failure. Confirm that's intended;
+//     callers often want to distinguish missing input from an actual error.
 return result.AllSucceeded ? 0 : 1;

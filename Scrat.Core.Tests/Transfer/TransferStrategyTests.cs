@@ -1,10 +1,11 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
-using Scrat.Core.Abstractions;
 using Scrat.Core.Configuration;
 using Scrat.Core.Deserialization;
+using Scrat.Core.Deserialization.Abstractions;
 using Scrat.Core.Models;
+using Scrat.Core.S3.Abstractions;
 using Scrat.Core.Tests.TestDoubles;
 using Scrat.Core.Transfer;
 
@@ -48,7 +49,7 @@ public class SmallTransferStrategyTests
 public class MediumTransferStrategyTests
 {
     [Fact]
-    public async Task Buffers_chunked_reads_deserializes_and_writes_chunked()
+    public async Task Buffers_chunked_reads_deserializes_and_writes_the_payload()
     {
         // 4-byte header + 6 content bytes, read in 4-byte chunks (3 ranged reads).
         var raw = new byte[] { 0, 0, 0, 0, 1, 2, 3, 4, 5, 6 };
@@ -57,16 +58,16 @@ public class MediumTransferStrategyTests
         endpoint.Reader.Returns(reader);
         endpoint.Deserializer.Returns(new BinaryHeaderDeserializer());
 
-        var options = Options.Create(new TransferOptions { MediumReadChunkSizeBytes = 4, MediumWriteChunkSizeBytes = 2 });
+        var options = Options.Create(new TransferOptions { MediumReadChunkSizeBytes = 4 });
         var exporter = new RecordingExporter();
         var strategy = new MediumTransferStrategy(options, NullLogger<MediumTransferStrategy>.Instance);
 
         await strategy.ExecuteAsync(new S3EndpointMatch(endpoint, "bucket"), "key", exporter);
 
         Assert.Equal(3, reader.ReadRangeCalls);
-        var (data, key, chunkSize) = Assert.Single(exporter.ChunkedWrites);
+        // The exporter decides how to slice the write, so the strategy just hands it the full payload.
+        var (data, key) = Assert.Single(exporter.Writes);
         Assert.Equal("key", key);
-        Assert.Equal(2, chunkSize);
         Assert.Equal(new byte[] { 1, 2, 3, 4, 5, 6 }, data.Content.ToArray());
     }
 }
@@ -85,45 +86,43 @@ public class LargeTransferStrategyTests
     }
 
     [Fact]
-    public async Task Streams_chunks_with_first_and_last_flags()
+    public async Task Opens_streams_each_chunk_then_closes()
     {
         var reader = new FakeS3Reader().Put("bucket", "key", Enumerable.Range(0, 20).Select(i => (byte)i).ToArray());
         var exporter = new RecordingExporter();
 
         await CreateStrategy(chunkSize: 8).ExecuteAsync(Match(reader), "key", exporter);
 
-        Assert.Equal(3, exporter.StreamChunks.Count);
-        Assert.Equal((8, true, false), (exporter.StreamChunks[0].Chunk.Length, exporter.StreamChunks[0].IsFirst, exporter.StreamChunks[0].IsLast));
-        Assert.Equal((8, false, false), (exporter.StreamChunks[1].Chunk.Length, exporter.StreamChunks[1].IsFirst, exporter.StreamChunks[1].IsLast));
-        Assert.Equal((4, false, true), (exporter.StreamChunks[2].Chunk.Length, exporter.StreamChunks[2].IsFirst, exporter.StreamChunks[2].IsLast));
+        Assert.Equal("key", Assert.Single(exporter.Opened));
+        Assert.Equal([8, 8, 4], exporter.StreamChunks.Select(c => c.Length));
+        Assert.Equal("key", Assert.Single(exporter.Closed));
         Assert.Empty(exporter.AbortedKeys);
     }
 
     [Fact]
-    public async Task Single_chunk_object_is_both_first_and_last()
+    public async Task Single_chunk_object_opens_writes_once_and_closes()
     {
         var reader = new FakeS3Reader().Put("bucket", "key", [1, 2, 3]);
         var exporter = new RecordingExporter();
 
         await CreateStrategy(chunkSize: 8).ExecuteAsync(Match(reader), "key", exporter);
 
-        var chunk = Assert.Single(exporter.StreamChunks);
-        Assert.True(chunk.IsFirst);
-        Assert.True(chunk.IsLast);
+        Assert.Single(exporter.Opened);
+        Assert.Equal([3], exporter.StreamChunks.Select(c => c.Length));
+        Assert.Single(exporter.Closed);
     }
 
     [Fact]
-    public async Task Empty_object_still_creates_the_destination_file()
+    public async Task Empty_object_still_opens_and_closes_the_destination_file()
     {
         var reader = new FakeS3Reader().Put("bucket", "key", []);
         var exporter = new RecordingExporter();
 
         await CreateStrategy(chunkSize: 8).ExecuteAsync(Match(reader), "key", exporter);
 
-        var chunk = Assert.Single(exporter.StreamChunks);
-        Assert.Empty(chunk.Chunk);
-        Assert.True(chunk.IsFirst);
-        Assert.True(chunk.IsLast);
+        Assert.Single(exporter.Opened);
+        Assert.Empty(exporter.StreamChunks);
+        Assert.Single(exporter.Closed);
     }
 
     [Fact]

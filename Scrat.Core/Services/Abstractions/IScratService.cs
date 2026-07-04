@@ -1,6 +1,6 @@
 using Scrat.Core.Models;
 
-namespace Scrat.Core.Abstractions;
+namespace Scrat.Core.Services.Abstractions;
 
 /// <summary>Public entry point: fans keys out concurrently and aggregates per-key outcomes.</summary>
 public interface IScratService

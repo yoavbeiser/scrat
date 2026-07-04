@@ -1,4 +1,5 @@
-using Scrat.Core.Abstractions;
+using Scrat.Core.Exporting;
+using Scrat.Core.Exporting.Abstractions;
 using Scrat.Core.Models;
 
 namespace Scrat.Core.Tests.TestDoubles;
@@ -10,9 +11,11 @@ internal sealed class RecordingExporter : IExporter
 
     public List<(ExportData Data, string Key)> Writes { get; } = [];
 
-    public List<(ExportData Data, string Key, int ChunkSize)> ChunkedWrites { get; } = [];
+    public List<string> Opened { get; } = [];
 
-    public List<(byte[] Chunk, bool IsFirst, bool IsLast)> StreamChunks { get; } = [];
+    public List<byte[]> StreamChunks { get; } = [];
+
+    public List<string> Closed { get; } = [];
 
     public List<string> AbortedKeys { get; } = [];
 
@@ -24,20 +27,26 @@ internal sealed class RecordingExporter : IExporter
         return Task.CompletedTask;
     }
 
-    public Task WriteChunkedAsync(ExportData data, string key, int chunkSizeBytes, CancellationToken cancellationToken = default)
+    public Task OpenAsync(string key, CancellationToken cancellationToken = default)
     {
-        ChunkedWrites.Add((data, key, chunkSizeBytes));
+        Opened.Add(key);
         return Task.CompletedTask;
     }
 
-    public Task WriteStreamChunkAsync(string key, ReadOnlyMemory<byte> chunk, bool isFirst, bool isLast, CancellationToken cancellationToken = default)
+    public Task WriteChunkAsync(string key, ReadOnlyMemory<byte> chunk, CancellationToken cancellationToken = default)
     {
         if (StreamChunks.Count == FailOnStreamChunkIndex)
         {
             throw new IOException("Injected stream failure.");
         }
 
-        StreamChunks.Add((chunk.ToArray(), isFirst, isLast));
+        StreamChunks.Add(chunk.ToArray());
+        return Task.CompletedTask;
+    }
+
+    public Task CloseAsync(string key, CancellationToken cancellationToken = default)
+    {
+        Closed.Add(key);
         return Task.CompletedTask;
     }
 

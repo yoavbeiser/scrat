@@ -1,7 +1,7 @@
 using Amazon.Runtime;
 using Amazon.S3;
-using Scrat.Core.Abstractions;
 using Scrat.Core.Configuration;
+using Scrat.Core.S3.Abstractions;
 
 namespace Scrat.Core.S3;
 

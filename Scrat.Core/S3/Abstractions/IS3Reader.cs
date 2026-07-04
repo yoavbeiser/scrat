@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace Scrat.Core.Abstractions;
+namespace Scrat.Core.S3.Abstractions;
 
 /// <summary>
 /// Low-level S3 wire operations for one endpoint. Every method is a single atomic network

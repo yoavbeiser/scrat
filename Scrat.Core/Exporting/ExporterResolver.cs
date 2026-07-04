@@ -1,5 +1,5 @@
 using System.Collections.Frozen;
-using Scrat.Core.Abstractions;
+using Scrat.Core.Exporting.Abstractions;
 using Scrat.Core.Models;
 
 namespace Scrat.Core.Exporting;

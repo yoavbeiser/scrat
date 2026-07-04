@@ -1,16 +1,18 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
-using Scrat.Core.Abstractions;
 using Scrat.Core.Configuration;
+using Scrat.Core.Exporting.Abstractions;
 using Scrat.Core.Models;
+using Scrat.Core.S3.Abstractions;
 using Scrat.Core.Services;
+using Scrat.Core.Transfer.Abstractions;
 
 namespace Scrat.Core.Tests.Services;
 
 public class ScratServiceTests
 {
-    private readonly IS3EndpointComposite _composite = Substitute.For<IS3EndpointComposite>();
+    private readonly IS3EndpointResolver _resolver = Substitute.For<IS3EndpointResolver>();
     private readonly ITransferStrategySelector _selector = Substitute.For<ITransferStrategySelector>();
     private readonly ITransferStrategy _strategy = Substitute.For<ITransferStrategy>();
     private readonly IExporterResolver _exporterResolver = Substitute.For<IExporterResolver>();
@@ -21,7 +23,7 @@ public class ScratServiceTests
         _exporterResolver.Resolve(Arg.Any<ExporterType>()).Returns(_exporter);
         _selector.Select(Arg.Any<SizeCategory>()).Returns(_strategy);
         return new ScratService(
-            _composite,
+            _resolver,
             _selector,
             _exporterResolver,
             Options.Create(new TransferOptions { MaxConcurrency = 2 }),
@@ -40,9 +42,9 @@ public class ScratServiceTests
     {
         var goodMatch = MatchFor(SizeCategory.Small);
         var badMatch = MatchFor(SizeCategory.Large);
-        _composite.FindEndpointAsync("good", Arg.Any<CancellationToken>()).Returns(goodMatch);
-        _composite.FindEndpointAsync("missing", Arg.Any<CancellationToken>()).Returns((S3EndpointMatch?)null);
-        _composite.FindEndpointAsync("bad", Arg.Any<CancellationToken>()).Returns(badMatch);
+        _resolver.FindEndpointAsync("good", Arg.Any<CancellationToken>()).Returns(goodMatch);
+        _resolver.FindEndpointAsync("missing", Arg.Any<CancellationToken>()).Returns((S3EndpointMatch?)null);
+        _resolver.FindEndpointAsync("bad", Arg.Any<CancellationToken>()).Returns(badMatch);
         _strategy.ExecuteAsync(Arg.Any<S3EndpointMatch>(), "bad", Arg.Any<IExporter>(), Arg.Any<CancellationToken>())
             .Returns(_ => throw new IOException("connection refused"));
 
@@ -66,7 +68,7 @@ public class ScratServiceTests
     public async Task Succeeds_when_every_key_transfers()
     {
         var match = MatchFor(SizeCategory.Medium);
-        _composite.FindEndpointAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(match);
+        _resolver.FindEndpointAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(match);
 
         var result = await CreateService().ExecuteAsync(new TransferRequest(ExporterType.Smb, ["a", "b"]));
 
@@ -79,13 +81,18 @@ public class ScratServiceTests
     public async Task Selects_strategy_matching_the_winning_endpoint_category()
     {
         var match = MatchFor(SizeCategory.Large);
-        _composite.FindEndpointAsync("key", Arg.Any<CancellationToken>()).Returns(match);
+        _resolver.FindEndpointAsync("key", Arg.Any<CancellationToken>()).Returns(match);
 
         await CreateService().ExecuteAsync(new TransferRequest(ExporterType.Smb, ["key"]));
 
         _selector.Received(1).Select(SizeCategory.Large);
     }
 
+    // CR: coverage gaps — two behaviours of ExecuteAsync are untested:
+    //   (1) cancellation: when the token is cancelled the service rethrows OperationCanceledException
+    //       (rather than swallowing it into a per-key Failed). No test pins this branch.
+    //   (2) concurrency: MaxConcurrency is honoured (fan-out is bounded). A test with a gate/counter
+    //       could assert no more than N keys run at once.
     [Fact]
     public async Task Empty_key_list_is_rejected()
     {

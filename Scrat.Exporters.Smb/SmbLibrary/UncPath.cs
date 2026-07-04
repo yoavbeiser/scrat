@@ -1,6 +1,7 @@
 namespace Scrat.Exporters.Smb.SmbLibrary;
 
 /// <summary>Parses a UNC share path into host, share and optional base directory.</summary>
+/// // CR: why implement this? cant this just be private method / static extension?
 internal static class UncPath
 {
     public static (string Host, string Share, string BaseDirectory) Parse(string sharePath)

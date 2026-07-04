@@ -11,8 +11,9 @@ public static class ResiliencePipelineNames
     public const string S3GetObjectSize = "s3.get-object-size";
     public const string S3ReadRange = "s3.read-range";
     public const string ExporterWrite = "exporter.write";
-    public const string ExporterWriteChunked = "exporter.write-chunked";
-    public const string ExporterWriteStreamChunk = "exporter.write-stream-chunk";
+    public const string ExporterOpen = "exporter.open";
+    public const string ExporterWriteChunk = "exporter.write-chunk";
+    public const string ExporterClose = "exporter.close";
 
     public static readonly IReadOnlyList<string> All =
     [
@@ -21,7 +22,8 @@ public static class ResiliencePipelineNames
         S3GetObjectSize,
         S3ReadRange,
         ExporterWrite,
-        ExporterWriteChunked,
-        ExporterWriteStreamChunk,
+        ExporterOpen,
+        ExporterWriteChunk,
+        ExporterClose,
     ];
 }
