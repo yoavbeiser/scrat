@@ -2,6 +2,6 @@
 **/obj/
 **/.idea/
 **/.DS_Store
-tests/
+**/*.Tests/
 Dockerfile
 README.md
