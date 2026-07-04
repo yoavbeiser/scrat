@@ -1,6 +1,7 @@
 namespace Scrat.Exporters.Smb.Abstractions;
 
-// CR: why is it interface and not use SMB directly?
+// This seam exists so SmbExporter can be unit-tested against an in-memory SMB (see FakeSmb in the
+// tests) without a live server, and so the SMBLibrary dependency stays isolated behind one adapter.
 /// <summary>An authenticated connection to one SMB share. Thin seam over the SMB client library.</summary>
 public interface ISmbShareConnection : IAsyncDisposable
 {
@@ -11,7 +12,6 @@ public interface ISmbShareConnection : IAsyncDisposable
     Task<ISmbFileHandle> OpenExistingAsync(string fileName, CancellationToken cancellationToken = default);
 }
 
-// CR: why is it interface and not use SMB directly?
 /// <summary>An open SMB file supporting offset-addressed writes.</summary>
 public interface ISmbFileHandle : IAsyncDisposable
 {

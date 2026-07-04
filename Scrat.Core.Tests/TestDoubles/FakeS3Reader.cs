@@ -1,4 +1,3 @@
-using Scrat.Core.S3;
 using Scrat.Core.S3.Abstractions;
 
 namespace Scrat.Core.Tests.TestDoubles;
@@ -8,19 +7,16 @@ internal sealed class FakeS3Reader : IS3Reader
 {
     private readonly Dictionary<string, byte[]> _objects = [];
 
-    public HashSet<string> Buckets { get; } = [];
-
     public int ReadRangeCalls { get; private set; }
 
     public FakeS3Reader Put(string bucket, string key, byte[] data)
     {
-        Buckets.Add(bucket);
         _objects[$"{bucket}/{key}"] = data;
         return this;
     }
 
-    public Task<bool> BucketExistsAsync(string bucketName, CancellationToken cancellationToken = default) =>
-        Task.FromResult(Buckets.Contains(bucketName));
+    public Task<bool> ObjectExistsAsync(string bucketName, string key, CancellationToken cancellationToken = default) =>
+        Task.FromResult(_objects.ContainsKey($"{bucketName}/{key}"));
 
     public Task<byte[]> ReadAllAsync(string bucketName, string key, CancellationToken cancellationToken = default) =>
         Task.FromResult(_objects[$"{bucketName}/{key}"]);

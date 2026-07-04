@@ -62,6 +62,27 @@ public class SmbExporterTests
     }
 
     [Fact]
+    public async Task Partial_write_mid_chunk_is_rewritten_from_the_committed_offset_on_retry()
+    {
+        var exporter = CreateExporter();
+        await exporter.OpenAsync("key");
+        await exporter.WriteChunkAsync("key", new byte[] { 1, 2 });
+
+        // The write commits 1 of the 2 bytes, then faults — the committed offset must not advance.
+        _world.FailNextWriteAfterBytes = 1;
+        await Assert.ThrowsAsync<ExportException>(() =>
+            exporter.WriteChunkAsync("key", new byte[] { 3, 4 }));
+
+        // Retry rewrites the same region from offset 2 (SMB writes are offset-addressed), no corruption.
+        await exporter.WriteChunkAsync("key", new byte[] { 3, 4 });
+        await exporter.CloseAsync("key");
+
+        Assert.Equal(new byte[] { 1, 2, 3, 4 }, _world.Files["key"]);
+        Assert.Equal(1, _world.OpenExistingCount);
+        Assert.Equal(0, _world.OpenConnections);
+    }
+
+    [Fact]
     public async Task Retried_open_recreates_the_file_from_scratch()
     {
         var exporter = CreateExporter();

@@ -24,10 +24,20 @@ public sealed class BucketInfo(Func<string, string?> resolve)
 
     private static string? SmallBucket(string key)
     {
-        // CR: only lowercasing is applied — a key whose first 2 chars contain '_', '.', or other
-        //     characters illegal in an S3 bucket name produces an invalid bucket and a hard failure.
-        var prefix = key.Length >= 2 ? key[..2] : key;
-        return $"small-data-{prefix.ToLowerInvariant()}";
+        var prefix = (key.Length >= 2 ? key[..2] : key).ToLowerInvariant();
+
+        // The prefix is spliced into an S3 bucket name, which only allows [a-z0-9-]. If the key's
+        // first chars fall outside that set, this cluster can't hold it — return null so the tier is
+        // skipped cleanly rather than probing a malformed bucket name.
+        foreach (var c in prefix)
+        {
+            if (c is not ((>= 'a' and <= 'z') or (>= '0' and <= '9') or '-'))
+            {
+                return null;
+            }
+        }
+
+        return $"small-data-{prefix}";
     }
 
     private static string? MediumBucket(string key)

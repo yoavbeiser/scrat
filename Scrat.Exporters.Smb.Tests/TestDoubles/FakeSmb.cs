@@ -22,6 +22,9 @@ internal sealed class FakeSmbWorld
     public int OpenConnections { get; set; }
 
     public Exception? FailNextWrite { get; set; }
+
+    /// <summary>When set, the next write commits this many bytes at its offset, then throws (partial write).</summary>
+    public int? FailNextWriteAfterBytes { get; set; }
 }
 
 internal sealed class FakeSmbConnectionFactory(FakeSmbWorld world) : ISmbConnectionFactory
@@ -65,19 +68,29 @@ internal sealed class FakeSmbFileHandle(FakeSmbWorld world, string fileName) : I
 {
     public Task WriteAsync(long offset, ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
     {
-        // CR: this fake fails all-or-nothing (throws before writing any byte), but the real
-        //   SmbLibraryFileHandle writes in a maxWriteSize loop and can fail *mid-object* with bytes
-        //   already committed. That path is safe (writes are offset-addressed and rewrite the same
-        //   region on retry) but it's untested — unlike the FTP suite, which does exercise a partial
-        //   write via FailNextWriteAfterBytes. Consider a partial-write case here too.
+        // All-or-nothing fault: throw before writing any byte.
         if (world.FailNextWrite is { } failure)
         {
             world.FailNextWrite = null;
             throw failure;
         }
 
-        world.WriteCalls.Add((fileName, offset, data.Length));
+        // Partial fault: commit some bytes (as the real handle's maxWriteSize loop would), then throw.
+        // Writes are offset-addressed, so a retried chunk safely rewrites the same region.
+        if (world.FailNextWriteAfterBytes is { } deliverable)
+        {
+            world.FailNextWriteAfterBytes = null;
+            Commit(offset, data[..Math.Min(deliverable, data.Length)]);
+            throw new IOException("connection reset mid-write");
+        }
 
+        world.WriteCalls.Add((fileName, offset, data.Length));
+        Commit(offset, data);
+        return Task.CompletedTask;
+    }
+
+    private void Commit(long offset, ReadOnlyMemory<byte> data)
+    {
         var file = world.Files[fileName];
         var requiredLength = (int)offset + data.Length;
         if (file.Length < requiredLength)
@@ -87,7 +100,6 @@ internal sealed class FakeSmbFileHandle(FakeSmbWorld world, string fileName) : I
 
         data.Span.CopyTo(file.AsSpan((int)offset));
         world.Files[fileName] = file;
-        return Task.CompletedTask;
     }
 
     public Task FlushAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;

@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Scrat.Core.Exceptions;
 using Scrat.Exporters.Smb.Abstractions;
 using SMBLibrary;
@@ -18,14 +19,11 @@ public sealed class SmbLibraryFileHandle(ISMBFileStore fileStore, object handle,
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var sliceLength = Math.Min(maxWriteSize, data.Length - written);
-                // CR: .ToArray() copies every slice into a fresh byte[] on each write (SMBLibrary needs
-                //     byte[]). For large streamed objects this is a lot of short-lived allocations/GC
-                //     pressure. Consider a reused buffer or an overload that takes ReadOnlyMemory/Span.
                 var status = fileStore.WriteFile(
                     out var bytesWritten,
                     handle,
                     offset + written,
-                    data.Slice(written, sliceLength).ToArray());
+                    AsArray(data.Slice(written, sliceLength)));
 
                 if (status != NTStatus.STATUS_SUCCESS)
                 {
@@ -59,4 +57,12 @@ public sealed class SmbLibraryFileHandle(ISMBFileStore fileStore, object handle,
         fileStore.CloseFile(handle);
         return ValueTask.CompletedTask;
     }
+
+    // SMBLibrary.WriteFile takes a byte[]. Hand it the backing array directly when the slice already
+    // is a whole standalone array (the common case: a full chunk that fits one write), and only copy
+    // when the slice is a sub-range — avoiding a fresh allocation on every write.
+    private static byte[] AsArray(ReadOnlyMemory<byte> memory) =>
+        MemoryMarshal.TryGetArray(memory, out var segment) && segment.Offset == 0 && segment.Count == segment.Array!.Length
+            ? segment.Array
+            : memory.ToArray();
 }

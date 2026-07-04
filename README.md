@@ -13,14 +13,14 @@ scrat ftp my/object/key
 scrat smb 2024-06-01/report key-a key-b
 ```
 
-Exit code is `0` if all keys transferred successfully, `1` otherwise. The report is written to stdout; logs go to stderr.
+Exit code: `0` if every key transferred, `1` if any key failed, `2` if some keys were not found on any cluster (and nothing failed). The report is written to stdout; logs go to stderr.
 
 ## Output
 
 ```
-[OK      ] my/object/key
+[OK       ] my/object/key
 [NOT_FOUND] missing/key
-[FAILED  ] bad/key  (connection refused)
+[FAILED   ] bad/key  (connection refused)
 
 2 ok  |  1 not found  |  1 failed
 ```
@@ -53,7 +53,9 @@ CLI args
 
 ### 1. Finding the endpoint
 
-`S3EndpointResolver` iterates the three endpoints in ascending size order (Small → Medium → Large). For each it derives the bucket name from the key via `endpoint.BucketInfo.Resolve(key)`, then calls `HeadBucket` via `endpoint.Reader.BucketExistsAsync`. The first cluster whose bucket exists wins and is returned as an `S3EndpointMatch` (endpoint + bucket name). If none respond, the key is reported as `NOT_FOUND`. Endpoints whose naming convention rejects the key shape are skipped without a network call. Bucket-naming rules live in the `BucketInfo` type (`BucketInfo.Small` / `Medium` / `Large`).
+`S3EndpointResolver` iterates the three endpoints in ascending size order (Small → Medium → Large). For each it derives the bucket name from the key via `endpoint.BucketInfo.Resolve(key)`, then probes whether the object actually exists there via `endpoint.Reader.ObjectExistsAsync` (a HEAD on the object). The first cluster that holds the key wins and is returned as an `S3EndpointMatch` (endpoint + bucket name). If no cluster holds it, the key is reported as `NOT_FOUND`. Endpoints whose naming convention rejects the key shape are skipped without a network call. Bucket-naming rules live in the `BucketInfo` type (`BucketInfo.Small` / `Medium` / `Large`).
+
+Probing the object (rather than just the bucket) matters because `BucketInfo.Small` resolves a bucket for almost any key: a bucket-only check would misroute keys that also fit the Medium/Large shape, and would surface a genuinely missing key as a failed read instead of `NOT_FOUND`.
 
 | Cluster | Bucket pattern | Expected key format |
 |---------|---------------|---------------------|
@@ -85,7 +87,7 @@ CLI args
 Every atomic I/O action runs inside its **own named Polly v8 pipeline** (retry with exponential backoff + jitter, plus a per-attempt timeout):
 
 ```
-s3.bucket-exists   s3.read-all   s3.get-object-size   s3.read-range
+s3.object-exists   s3.read-all   s3.get-object-size   s3.read-range
 exporter.write     exporter.open   exporter.write-chunk   exporter.close
 ```
 
@@ -98,7 +100,7 @@ The pipelines are applied by decorators (`ResilientS3Reader`, `ResilientExporter
 | `IScratService` | Public entry point. Accepts `TransferRequest`, fans keys out concurrently, returns `TransferResult`. |
 | `IS3EndpointResolver` | Probes endpoints in order to find which cluster holds the key. Returns `S3EndpointMatch` or `null`. |
 | `IS3Endpoint` | Endpoint metadata: `HandledSizeCategory`, `Deserializer`, `BucketInfo`, and `Reader`. |
-| `IS3Reader` | Atomic S3 wire operations: `BucketExists`, `ReadAll`, `GetObjectSize`, `ReadRange`; `ReadChunks` is composed from the last two. One instance per endpoint. |
+| `IS3Reader` | Atomic S3 wire operations: `ObjectExists`, `ReadAll`, `GetObjectSize`, `ReadRange`; `ReadChunks` is composed from the last two. One instance per endpoint. |
 | `IS3ReaderFactory` | Constructs `IS3Reader` from `S3EndpointConfig`. Injection point for swapping the AWS SDK. |
 | `IDataDeserializer` | Converts raw S3 bytes into `ExportData`. One implementation per endpoint format. |
 | `ITransferStrategySelector` | Maps `SizeCategory` → `ITransferStrategy`. |

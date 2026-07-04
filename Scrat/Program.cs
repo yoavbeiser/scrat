@@ -56,19 +56,19 @@ catch (Exception ex)
 
 foreach (var key in result.Keys)
 {
-    // CR: status labels are not column-aligned ([OK      ] vs [NOT_FOUND] vs [FAILED  ]) — output looks ragged.
     Console.WriteLine(key.Status switch
     {
-        KeyStatus.Ok => $"[OK      ] {key.Key}",
+        KeyStatus.Ok => $"[OK       ] {key.Key}",
         KeyStatus.NotFound => $"[NOT_FOUND] {key.Key}",
-        _ => $"[FAILED  ] {key.Key}  ({key.Error})",
+        _ => $"[FAILED   ] {key.Key}  ({key.Error})",
     });
 }
 
 Console.WriteLine();
 Console.WriteLine($"{result.OkCount} ok  |  {result.NotFoundCount} not found  |  {result.FailedCount} failed");
 
-// CR: AllSucceeded is true only when every key is Ok, so a NotFound key yields exit code 1 — i.e.
-//     "key doesn't exist" is reported the same as a real transfer failure. Confirm that's intended;
-//     callers often want to distinguish missing input from an actual error.
-return result.AllSucceeded ? 0 : 1;
+// Exit codes let callers tell a real error from missing input:
+//   0 = every key transferred, 1 = at least one key failed, 2 = some keys not found (none failed).
+return result.FailedCount > 0 ? 1
+    : result.NotFoundCount > 0 ? 2
+    : 0;

@@ -10,9 +10,9 @@ namespace Scrat.Core.Resilience;
 /// </summary>
 public sealed class ResilientS3Reader(IS3Reader inner, ResiliencePipelineProvider<string> pipelineProvider) : IS3Reader
 {
-    public async Task<bool> BucketExistsAsync(string bucketName, CancellationToken cancellationToken = default) =>
-        await pipelineProvider.GetPipeline(ResiliencePipelineNames.S3BucketExists)
-            .ExecuteAsync(async ct => await inner.BucketExistsAsync(bucketName, ct).ConfigureAwait(false), cancellationToken)
+    public async Task<bool> ObjectExistsAsync(string bucketName, string key, CancellationToken cancellationToken = default) =>
+        await pipelineProvider.GetPipeline(ResiliencePipelineNames.S3ObjectExists)
+            .ExecuteAsync(async ct => await inner.ObjectExistsAsync(bucketName, key, ct).ConfigureAwait(false), cancellationToken)
             .ConfigureAwait(false);
 
     public async Task<byte[]> ReadAllAsync(string bucketName, string key, CancellationToken cancellationToken = default) =>

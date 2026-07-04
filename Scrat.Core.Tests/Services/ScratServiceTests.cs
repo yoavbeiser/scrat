@@ -88,11 +88,48 @@ public class ScratServiceTests
         _selector.Received(1).Select(SizeCategory.Large);
     }
 
-    // CR: coverage gaps — two behaviours of ExecuteAsync are untested:
-    //   (1) cancellation: when the token is cancelled the service rethrows OperationCanceledException
-    //       (rather than swallowing it into a per-key Failed). No test pins this branch.
-    //   (2) concurrency: MaxConcurrency is honoured (fan-out is bounded). A test with a gate/counter
-    //       could assert no more than N keys run at once.
+    [Fact]
+    public async Task Cancellation_propagates_rather_than_being_reported_as_failed()
+    {
+        var match = MatchFor(SizeCategory.Small);
+        _resolver.FindEndpointAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(match);
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            CreateService().ExecuteAsync(new TransferRequest(ExporterType.Smb, ["a", "b"]), cts.Token));
+    }
+
+    [Fact]
+    public async Task Fans_keys_out_but_never_exceeds_MaxConcurrency()
+    {
+        var match = MatchFor(SizeCategory.Small);
+        _resolver.FindEndpointAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(match);
+
+        var current = 0;
+        var observedMax = 0;
+        var gate = new object();
+        _strategy.ExecuteAsync(Arg.Any<S3EndpointMatch>(), Arg.Any<string>(), Arg.Any<IExporter>(), Arg.Any<CancellationToken>())
+            .Returns(async _ =>
+            {
+                var now = Interlocked.Increment(ref current);
+                lock (gate)
+                {
+                    observedMax = Math.Max(observedMax, now);
+                }
+
+                await Task.Delay(40);
+                Interlocked.Decrement(ref current);
+            });
+
+        // CreateService sets MaxConcurrency = 2.
+        await CreateService().ExecuteAsync(new TransferRequest(ExporterType.Smb, ["a", "b", "c", "d", "e", "f"]));
+
+        Assert.True(observedMax <= 2, $"observed {observedMax} concurrent transfers, expected at most 2");
+        Assert.True(observedMax >= 2, "expected the keys to run in parallel");
+    }
+
     [Fact]
     public async Task Empty_key_list_is_rejected()
     {

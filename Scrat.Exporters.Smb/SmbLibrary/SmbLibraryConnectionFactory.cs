@@ -15,7 +15,7 @@ public sealed class SmbLibraryConnectionFactory(IOptions<SmbOptions> options) : 
         return Task.Run<ISmbShareConnection>(() =>
         {
             var smbOptions = options.Value;
-            var (host, share, baseDirectory) = UncPath.Parse(smbOptions.SharePath);
+            var (host, share, baseDirectory) = ParseUncPath(smbOptions.SharePath);
 
             var client = new SMB2Client();
             if (!client.Connect(host, SMBTransportType.DirectTCPTransport))
@@ -47,5 +47,19 @@ public sealed class SmbLibraryConnectionFactory(IOptions<SmbOptions> options) : 
         {
             throw new ExportException($"SMB {action} failed with status {status}.");
         }
+    }
+
+    /// <summary>Parses a UNC share path into host, share and optional base directory.</summary>
+    private static (string Host, string Share, string BaseDirectory) ParseUncPath(string sharePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sharePath);
+
+        var parts = sharePath.Replace('/', '\\').Trim('\\').Split('\\', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 2)
+        {
+            throw new ArgumentException($"SharePath '{sharePath}' is not a valid UNC path; expected \\\\server\\share[\\subdir].");
+        }
+
+        return (parts[0], parts[1], string.Join('\\', parts[2..]));
     }
 }

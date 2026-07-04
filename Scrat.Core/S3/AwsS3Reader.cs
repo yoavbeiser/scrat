@@ -8,16 +8,17 @@ namespace Scrat.Core.S3;
 /// <summary>AWS SDK implementation of the atomic S3 wire operations.</summary>
 public sealed class AwsS3Reader(IAmazonS3 client) : IS3Reader
 {
-    public async Task<bool> BucketExistsAsync(string bucketName, CancellationToken cancellationToken = default)
+    public async Task<bool> ObjectExistsAsync(string bucketName, string key, CancellationToken cancellationToken = default)
     {
         try
         {
-            await client.HeadBucketAsync(new HeadBucketRequest { BucketName = bucketName }, cancellationToken).ConfigureAwait(false);
+            await client.GetObjectMetadataAsync(bucketName, key, cancellationToken).ConfigureAwait(false);
             return true;
         }
         catch (AmazonS3Exception ex) when (ex.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.MovedPermanently or HttpStatusCode.Forbidden)
         {
-            // 301/403 mean the bucket lives elsewhere or is not ours — either way this cluster does not hold the key.
+            // 404 = no such object/bucket here; 301/403 = the bucket lives elsewhere or is not ours.
+            // Either way this cluster does not hold the key.
             return false;
         }
     }

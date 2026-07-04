@@ -8,7 +8,8 @@ namespace Scrat.Core.S3.Abstractions;
 /// </summary>
 public interface IS3Reader
 {
-    Task<bool> BucketExistsAsync(string bucketName, CancellationToken cancellationToken = default);
+    /// <summary>True when <paramref name="key"/> exists in <paramref name="bucketName"/> on this cluster (a HEAD on the object).</summary>
+    Task<bool> ObjectExistsAsync(string bucketName, string key, CancellationToken cancellationToken = default);
 
     Task<byte[]> ReadAllAsync(string bucketName, string key, CancellationToken cancellationToken = default);
 

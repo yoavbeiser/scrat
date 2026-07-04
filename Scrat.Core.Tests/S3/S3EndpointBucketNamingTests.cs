@@ -25,6 +25,15 @@ public class BucketInfoTests
     }
 
     [Theory]
+    [InlineData("_x")]      // '_' is not valid in a bucket name
+    [InlineData(".a/b")]    // '.' prefix
+    [InlineData("a_b")]     // first two chars "a_" contain '_'
+    public void Small_rejects_keys_whose_prefix_is_not_bucket_safe(string key)
+    {
+        Assert.Null(BucketInfo.Small.Resolve(key));
+    }
+
+    [Theory]
     [InlineData("2024-06-01/report", "medium-data-2024-06-01")]
     [InlineData("1999-12-31/a/b", "medium-data-1999-12-31")]
     public void Medium_derives_bucket_from_date_prefix(string key, string expected)

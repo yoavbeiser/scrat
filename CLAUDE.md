@@ -7,7 +7,8 @@ Guidance for working in this repo. See `README.md` for the full architecture wri
 `scrat` is a .NET 9 CLI that reads objects from S3 and exports them to SMB or FTP.
 `scrat <smb|ftp> <key1> [key2 ...]`. Keys are routed to one of three S3 clusters
 (Small / Medium / Large) and transferred with a memory strategy matched to the size tier.
-Exit code `0` iff every key transferred; report to stdout, logs to stderr.
+Exit code: `0` all transferred, `1` some failed, `2` some not found (none failed); report to
+stdout, logs to stderr.
 
 ## Commands
 
@@ -43,8 +44,10 @@ NuGet versions are centralized in `Directory.Packages.props` via `<PackageVersio
 
 - `IScratService` (ScratService) orchestrates: fans keys out with `Parallel.ForEachAsync`
   (bounded by `TransferOptions.MaxConcurrency`), aggregates per-key outcomes.
-- `IS3EndpointResolver` (S3EndpointResolver) probes the 3 endpoints in ascending size order;
-  first cluster whose bucket exists wins. Bucket names come from `endpoint.BucketInfo.Resolve(key)`.
+- `IS3EndpointResolver` (S3EndpointResolver) probes the 3 endpoints in ascending size order and
+  returns the first that actually holds the key (`IS3Reader.ObjectExistsAsync`, a HEAD on the
+  object — not just the bucket, since `BucketInfo.Small` matches almost any key). Bucket names come
+  from `endpoint.BucketInfo.Resolve(key)`.
 - `BucketInfo` holds each tier's naming rule (`BucketInfo.Small` / `Medium` / `Large`).
 - `ITransferStrategy` per tier — Small/Medium buffer then `IExporter.WriteAsync`; Large streams
   via `IExporter.OpenAsync` → `WriteChunkAsync` (per chunk) → `CloseAsync`.

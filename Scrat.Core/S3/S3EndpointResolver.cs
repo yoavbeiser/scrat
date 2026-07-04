@@ -4,7 +4,7 @@ using Scrat.Core.S3.Abstractions;
 
 namespace Scrat.Core.S3;
 
-/// <summary>Probes endpoints in ascending size order; the first cluster whose bucket exists wins.</summary>
+/// <summary>Probes endpoints in ascending size order; the first cluster that actually holds the key wins.</summary>
 public sealed class S3EndpointResolver : IS3EndpointResolver
 {
     private readonly IReadOnlyList<IS3Endpoint> _endpoints;
@@ -27,13 +27,10 @@ public sealed class S3EndpointResolver : IS3EndpointResolver
                 continue;
             }
 
-            // CR: checking if bucket exists is not the same as key exists
-            // CR: BucketInfo.Small resolves a bucket for ANY non-empty key, so Small is always probed
-            //     first (ordered ascending). If its bucket exists, it wins even for keys meant for
-            //     Medium/Large -> misrouting. Combined with the note above, a key that is genuinely
-            //     absent from the winning bucket surfaces as Failed (GetObject 404), never NotFound.
-            //     Consider probing the object (HEAD key), not just the bucket.
-            if (await endpoint.Reader.BucketExistsAsync(bucket, cancellationToken).ConfigureAwait(false))
+            // Probe the object itself (not just the bucket): BucketInfo.Small resolves a bucket for
+            // almost any key, so a bucket-only check would misroute keys that also fit Medium/Large and
+            // would report a genuinely missing key as a failed read rather than NotFound.
+            if (await endpoint.Reader.ObjectExistsAsync(bucket, key, cancellationToken).ConfigureAwait(false))
             {
                 _logger.LogDebug("Key {Key} resolved to {Category} cluster (bucket {Bucket})", key, endpoint.HandledSizeCategory, bucket);
                 return new S3EndpointMatch(endpoint, bucket);

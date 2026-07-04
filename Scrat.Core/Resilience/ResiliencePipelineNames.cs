@@ -6,7 +6,7 @@ namespace Scrat.Core.Resilience;
 /// </summary>
 public static class ResiliencePipelineNames
 {
-    public const string S3BucketExists = "s3.bucket-exists";
+    public const string S3ObjectExists = "s3.object-exists";
     public const string S3ReadAll = "s3.read-all";
     public const string S3GetObjectSize = "s3.get-object-size";
     public const string S3ReadRange = "s3.read-range";
@@ -17,7 +17,7 @@ public static class ResiliencePipelineNames
 
     public static readonly IReadOnlyList<string> All =
     [
-        S3BucketExists,
+        S3ObjectExists,
         S3ReadAll,
         S3GetObjectSize,
         S3ReadRange,
