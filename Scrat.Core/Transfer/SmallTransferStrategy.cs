@@ -1,6 +1,9 @@
 using Microsoft.Extensions.Logging;
-using Scrat.Core.Abstractions;
+using Scrat.Core.Exporting;
+using Scrat.Core.Exporting.Abstractions;
 using Scrat.Core.Models;
+using Scrat.Core.S3;
+using Scrat.Core.Transfer.Abstractions;
 
 namespace Scrat.Core.Transfer;
 

@@ -1,4 +1,5 @@
-using Scrat.Core.Abstractions;
+using Scrat.Core.S3;
+using Scrat.Core.S3.Abstractions;
 
 namespace Scrat.Core.Tests.TestDoubles;
 

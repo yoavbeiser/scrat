@@ -1,7 +1,7 @@
 using NSubstitute;
-using Scrat.Core.Abstractions;
 using Scrat.Core.Models;
 using Scrat.Core.Transfer;
+using Scrat.Core.Transfer.Abstractions;
 
 namespace Scrat.Core.Tests.Transfer;
 

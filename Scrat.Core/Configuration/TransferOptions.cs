@@ -7,8 +7,6 @@ public sealed class TransferOptions
 
     public int MediumReadChunkSizeBytes { get; init; } = 5 * 1024 * 1024;
 
-    public int MediumWriteChunkSizeBytes { get; init; } = 4 * 1024 * 1024;
-
     public int LargeChunkSizeBytes { get; init; } = 8 * 1024 * 1024;
 
     public int MaxConcurrency { get; init; } = 4;

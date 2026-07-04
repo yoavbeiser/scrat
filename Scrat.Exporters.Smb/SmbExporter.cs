@@ -1,8 +1,8 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
-using Scrat.Core.Abstractions;
 using Scrat.Core.Exceptions;
 using Scrat.Core.Exporting;
+using Scrat.Core.Exporting.Abstractions;
 using Scrat.Core.Models;
 using Scrat.Exporters.Smb.Abstractions;
 
@@ -30,31 +30,15 @@ public sealed class SmbExporter(ISmbConnectionFactory connectionFactory, ILogger
         logger.LogDebug("SMB: wrote {Bytes} bytes for key {Key}", data.Content.Length, key);
     }
 
-    public async Task WriteChunkedAsync(ExportData data, string key, int chunkSizeBytes, CancellationToken cancellationToken = default)
+    public async Task OpenAsync(string key, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(data);
-        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(chunkSizeBytes, 0);
-
-        await using var connection = await connectionFactory.ConnectAsync(cancellationToken).ConfigureAwait(false);
-        await using var file = await connection.CreateFileAsync(ExportPath.ToFileName(key), cancellationToken).ConfigureAwait(false);
-
-        var content = data.Content;
-        for (var offset = 0; offset < content.Length; offset += chunkSizeBytes)
-        {
-            var sliceLength = Math.Min(chunkSizeBytes, content.Length - offset);
-            await file.WriteAsync(offset, content.Slice(offset, sliceLength), cancellationToken).ConfigureAwait(false);
-        }
-
-        await file.FlushAsync(cancellationToken).ConfigureAwait(false);
-        logger.LogDebug("SMB: wrote {Bytes} bytes for key {Key} in {ChunkSize}-byte slices", content.Length, key, chunkSizeBytes);
+        await StartSessionAsync(key, cancellationToken).ConfigureAwait(false);
+        logger.LogDebug("SMB: opened stream session for key {Key}", key);
     }
 
-    public async Task WriteStreamChunkAsync(string key, ReadOnlyMemory<byte> chunk, bool isFirst, bool isLast, CancellationToken cancellationToken = default)
+    public async Task WriteChunkAsync(string key, ReadOnlyMemory<byte> chunk, CancellationToken cancellationToken = default)
     {
-        var session = isFirst
-            ? await StartSessionAsync(key, cancellationToken).ConfigureAwait(false)
-            : GetSession(key);
-
+        var session = GetSession(key);
         if (session.Faulted)
         {
             await RecoverSessionAsync(session, key, cancellationToken).ConfigureAwait(false);
@@ -63,24 +47,36 @@ public sealed class SmbExporter(ISmbConnectionFactory connectionFactory, ILogger
         try
         {
             await session.File.WriteAsync(session.CommittedOffset, chunk, cancellationToken).ConfigureAwait(false);
-            if (isLast)
-            {
-                await session.File.FlushAsync(cancellationToken).ConfigureAwait(false);
-            }
 
-            // Only advance after the full call succeeded, so a retried chunk rewrites the same region.
+            // Only advance after the write succeeded, so a retried chunk rewrites the same region.
             session.CommittedOffset += chunk.Length;
-
-            if (isLast)
-            {
-                _sessions.TryRemove(key, out _);
-                await session.DisposeAsync().ConfigureAwait(false);
-            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException and not NonRetryableExportException)
         {
             session.Faulted = true;
             throw new ExportException($"SMB stream write failed for key '{key}' at offset {session.CommittedOffset}.", ex);
+        }
+    }
+
+    public async Task CloseAsync(string key, CancellationToken cancellationToken = default)
+    {
+        var session = GetSession(key);
+        if (session.Faulted)
+        {
+            await RecoverSessionAsync(session, key, cancellationToken).ConfigureAwait(false);
+        }
+
+        try
+        {
+            await session.File.FlushAsync(cancellationToken).ConfigureAwait(false);
+            _sessions.TryRemove(key, out _);
+            await session.DisposeAsync().ConfigureAwait(false);
+            logger.LogDebug("SMB: closed stream session for key {Key} at {Bytes} bytes", key, session.CommittedOffset);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException and not NonRetryableExportException)
+        {
+            session.Faulted = true;
+            throw new ExportException($"SMB stream close failed for key '{key}'.", ex);
         }
     }
 

@@ -1,5 +1,5 @@
 using Polly.Registry;
-using Scrat.Core.Abstractions;
+using Scrat.Core.S3.Abstractions;
 
 namespace Scrat.Core.Resilience;
 

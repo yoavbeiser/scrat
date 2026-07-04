@@ -1,6 +1,7 @@
+using Scrat.Core.Exporting.Abstractions;
 using Scrat.Core.Models;
 
-namespace Scrat.Core.Abstractions;
+namespace Scrat.Core.Transfer.Abstractions;
 
 /// <summary>Moves the data of one key from an S3 endpoint to an exporter.</summary>
 public interface ITransferStrategy

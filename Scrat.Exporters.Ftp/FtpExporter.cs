@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Scrat.Core.Abstractions;
 using Scrat.Core.Exceptions;
 using Scrat.Core.Exporting;
+using Scrat.Core.Exporting.Abstractions;
 using Scrat.Core.Models;
 using Scrat.Exporters.Ftp.Abstractions;
 
@@ -36,34 +36,15 @@ public sealed class FtpExporter(IFtpConnectionFactory connectionFactory, IOption
         logger.LogDebug("FTP: wrote {Bytes} bytes for key {Key}", data.Content.Length, key);
     }
 
-    public async Task WriteChunkedAsync(ExportData data, string key, int chunkSizeBytes, CancellationToken cancellationToken = default)
+    public async Task OpenAsync(string key, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(data);
-        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(chunkSizeBytes, 0);
-
-        await using var connection = await connectionFactory.ConnectAsync(cancellationToken).ConfigureAwait(false);
-        var stream = await connection.OpenWriteAsync(RemotePath(key), cancellationToken).ConfigureAwait(false);
-        await using (stream.ConfigureAwait(false))
-        {
-            var content = data.Content;
-            for (var offset = 0; offset < content.Length; offset += chunkSizeBytes)
-            {
-                var sliceLength = Math.Min(chunkSizeBytes, content.Length - offset);
-                await stream.WriteAsync(content.Slice(offset, sliceLength), cancellationToken).ConfigureAwait(false);
-            }
-
-            await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
-        }
-
-        logger.LogDebug("FTP: wrote {Bytes} bytes for key {Key} in {ChunkSize}-byte slices", data.Content.Length, key, chunkSizeBytes);
+        await StartSessionAsync(key, cancellationToken).ConfigureAwait(false);
+        logger.LogDebug("FTP: opened stream session for key {Key}", key);
     }
 
-    public async Task WriteStreamChunkAsync(string key, ReadOnlyMemory<byte> chunk, bool isFirst, bool isLast, CancellationToken cancellationToken = default)
+    public async Task WriteChunkAsync(string key, ReadOnlyMemory<byte> chunk, CancellationToken cancellationToken = default)
     {
-        var session = isFirst
-            ? await StartSessionAsync(key, cancellationToken).ConfigureAwait(false)
-            : GetSession(key);
-
+        var session = GetSession(key);
         if (session.Faulted)
         {
             await RecoverSessionAsync(session, key, cancellationToken).ConfigureAwait(false);
@@ -76,17 +57,33 @@ public sealed class FtpExporter(IFtpConnectionFactory connectionFactory, IOption
 
             // Only advance after the chunk is fully flushed, so a resumed session knows the true remote length.
             session.CommittedOffset += chunk.Length;
-
-            if (isLast)
-            {
-                _sessions.TryRemove(key, out _);
-                await session.DisposeAsync().ConfigureAwait(false);
-            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException and not NonRetryableExportException)
         {
             session.Faulted = true;
             throw new ExportException($"FTP stream write failed for key '{key}' at offset {session.CommittedOffset}.", ex);
+        }
+    }
+
+    public async Task CloseAsync(string key, CancellationToken cancellationToken = default)
+    {
+        var session = GetSession(key);
+        if (session.Faulted)
+        {
+            await RecoverSessionAsync(session, key, cancellationToken).ConfigureAwait(false);
+        }
+
+        try
+        {
+            await session.Stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+            _sessions.TryRemove(key, out _);
+            await session.DisposeAsync().ConfigureAwait(false);
+            logger.LogDebug("FTP: closed stream session for key {Key} at {Bytes} bytes", key, session.CommittedOffset);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException and not NonRetryableExportException)
+        {
+            session.Faulted = true;
+            throw new ExportException($"FTP stream close failed for key '{key}'.", ex);
         }
     }
 

@@ -1,14 +1,17 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Scrat.Core.Abstractions;
 using Scrat.Core.Configuration;
+using Scrat.Core.Exporting;
+using Scrat.Core.Exporting.Abstractions;
 using Scrat.Core.Models;
+using Scrat.Core.Transfer.Abstractions;
 
 namespace Scrat.Core.Transfer;
 
 /// <summary>
 /// Large tier: stream chunk by chunk, never buffering the whole object. Raw bytes pass through
-/// without deserialization; <c>isFirst</c>/<c>isLast</c> signal the exporter to open/close the file.
+/// without deserialization. The exporter owns the open/close lifecycle; this strategy just reads
+/// a chunk and writes it, repeating until the object is exhausted.
 /// </summary>
 public sealed class LargeTransferStrategy(IOptions<TransferOptions> options, ILogger<LargeTransferStrategy> logger) : ITransferStrategy
 {
@@ -33,26 +36,19 @@ public sealed class LargeTransferStrategy(IOptions<TransferOptions> options, ILo
     private async Task StreamAsync(S3EndpointMatch match, string key, IExporter exporter, CancellationToken cancellationToken)
     {
         var chunkSize = options.Value.LargeChunkSizeBytes;
-        var isFirst = true;
 
-        // CR: the process should be: s3 read chunk -> exporter write chunk -> repeat 
-        // One chunk of lookahead so the final chunk can be flagged isLast.
-        ReadOnlyMemory<byte>? pending = null;
+        await exporter.OpenAsync(key, cancellationToken).ConfigureAwait(false);
+
+        var chunks = 0;
         await foreach (var chunk in match.Endpoint.Reader
                            .ReadChunksAsync(match.Bucket, key, chunkSize, cancellationToken)
                            .ConfigureAwait(false))
         {
-            if (pending is { } previous)
-            {
-                await exporter.WriteStreamChunkAsync(key, previous, isFirst, isLast: false, cancellationToken).ConfigureAwait(false);
-                isFirst = false;
-            }
-
-            pending = chunk;
+            await exporter.WriteChunkAsync(key, chunk, cancellationToken).ConfigureAwait(false);
+            chunks++;
         }
 
-        var lastChunk = pending ?? ReadOnlyMemory<byte>.Empty;
-        logger.LogDebug("Writing final stream chunk of {Bytes} bytes for key {Key}", lastChunk.Length, key);
-        await exporter.WriteStreamChunkAsync(key, lastChunk, isFirst, isLast: true, cancellationToken).ConfigureAwait(false);
+        await exporter.CloseAsync(key, cancellationToken).ConfigureAwait(false);
+        logger.LogDebug("Streamed key {Key} to the exporter in {Chunks} chunk(s)", key, chunks);
     }
 }

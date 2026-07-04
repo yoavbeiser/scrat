@@ -1,6 +1,6 @@
 using NSubstitute;
-using Scrat.Core.Abstractions;
 using Scrat.Core.Exporting;
+using Scrat.Core.Exporting.Abstractions;
 using Scrat.Core.Models;
 
 namespace Scrat.Core.Tests.Exporting;

@@ -4,12 +4,13 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using Polly.Registry;
-using Scrat.Core.Abstractions;
 using Scrat.Core.Configuration;
 using Scrat.Core.DependencyInjection;
 using Scrat.Core.Exceptions;
+using Scrat.Core.Exporting.Abstractions;
 using Scrat.Core.Models;
 using Scrat.Core.Resilience;
+using Scrat.Core.S3.Abstractions;
 
 namespace Scrat.Core.Tests.Resilience;
 
@@ -107,12 +108,12 @@ public class ResilienceTests
     {
         var attempts = 0;
         var inner = Substitute.For<IExporter>();
-        inner.WriteStreamChunkAsync(Arg.Any<string>(), Arg.Any<ReadOnlyMemory<byte>>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+        inner.WriteChunkAsync(Arg.Any<string>(), Arg.Any<ReadOnlyMemory<byte>>(), Arg.Any<CancellationToken>())
             .Returns(_ => ++attempts < 2 ? throw new ExportException("broken pipe") : Task.CompletedTask);
 
         var exporter = new ResilientExporter(inner, CreateProvider());
 
-        await exporter.WriteStreamChunkAsync("key", new byte[3], isFirst: true, isLast: false);
+        await exporter.WriteChunkAsync("key", new byte[3]);
 
         Assert.Equal(2, attempts);
     }
