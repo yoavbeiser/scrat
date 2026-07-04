@@ -41,7 +41,7 @@ public sealed class SmbLibraryConnectionFactory(IOptions<SmbOptions> options) : 
         }, cancellationToken);
     }
 
-    internal static void ThrowOnError(NTStatus status, string action)
+    private static void ThrowOnError(NTStatus status, string action)
     {
         if (status != NTStatus.STATUS_SUCCESS)
         {

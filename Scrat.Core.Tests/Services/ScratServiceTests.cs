@@ -86,6 +86,11 @@ public class ScratServiceTests
         _selector.Received(1).Select(SizeCategory.Large);
     }
 
+    // CR: coverage gaps — two behaviours of ExecuteAsync are untested:
+    //   (1) cancellation: when the token is cancelled the service rethrows OperationCanceledException
+    //       (rather than swallowing it into a per-key Failed). No test pins this branch.
+    //   (2) concurrency: MaxConcurrency is honoured (fan-out is bounded). A test with a gate/counter
+    //       could assert no more than N keys run at once.
     [Fact]
     public async Task Empty_key_list_is_rejected()
     {

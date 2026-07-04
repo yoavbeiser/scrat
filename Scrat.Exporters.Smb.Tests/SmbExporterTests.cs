@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Scrat.Core.Exceptions;
 using Scrat.Core.Models;
 using Scrat.Exporters.Smb;
-using Scrat.Exporters.Smb.Abstractions;
+using Scrat.Exporters.Smb.Tests.TestDoubles;
 
 namespace Scrat.Exporters.Smb.Tests;
 
@@ -103,88 +103,4 @@ public class SmbExporterTests
         await Assert.ThrowsAsync<NonRetryableExportException>(() =>
             exporter.WriteStreamChunkAsync("key", new byte[1], isFirst: false, isLast: false));
     }
-}
-// CR: why?
-internal sealed class FakeSmbWorld
-{
-    public Dictionary<string, byte[]> Files { get; } = [];
-
-    public List<(string File, long Offset, int Length)> WriteCalls { get; } = [];
-
-    public int ConnectCount { get; set; }
-
-    public int CreateCount { get; set; }
-
-    public int OpenExistingCount { get; set; }
-
-    public int OpenConnections { get; set; }
-
-    public Exception? FailNextWrite { get; set; }
-}
-
-internal sealed class FakeSmbConnectionFactory(FakeSmbWorld world) : ISmbConnectionFactory
-{
-    public Task<ISmbShareConnection> ConnectAsync(CancellationToken cancellationToken = default)
-    {
-        world.ConnectCount++;
-        world.OpenConnections++;
-        return Task.FromResult<ISmbShareConnection>(new FakeSmbShareConnection(world));
-    }
-}
-
-internal sealed class FakeSmbShareConnection(FakeSmbWorld world) : ISmbShareConnection
-{
-    public Task<ISmbFileHandle> CreateFileAsync(string fileName, CancellationToken cancellationToken = default)
-    {
-        world.CreateCount++;
-        world.Files[fileName] = [];
-        return Task.FromResult<ISmbFileHandle>(new FakeSmbFileHandle(world, fileName));
-    }
-
-    public Task<ISmbFileHandle> OpenExistingAsync(string fileName, CancellationToken cancellationToken = default)
-    {
-        world.OpenExistingCount++;
-        if (!world.Files.ContainsKey(fileName))
-        {
-            throw new FileNotFoundException(fileName);
-        }
-
-        return Task.FromResult<ISmbFileHandle>(new FakeSmbFileHandle(world, fileName));
-    }
-
-    public ValueTask DisposeAsync()
-    {
-        world.OpenConnections--;
-        return ValueTask.CompletedTask;
-    }
-}
-
-// CR: why?
-internal sealed class FakeSmbFileHandle(FakeSmbWorld world, string fileName) : ISmbFileHandle
-{
-    public Task WriteAsync(long offset, ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
-    {
-        if (world.FailNextWrite is { } failure)
-        {
-            world.FailNextWrite = null;
-            throw failure;
-        }
-
-        world.WriteCalls.Add((fileName, offset, data.Length));
-
-        var file = world.Files[fileName];
-        var requiredLength = (int)offset + data.Length;
-        if (file.Length < requiredLength)
-        {
-            Array.Resize(ref file, requiredLength);
-        }
-
-        data.Span.CopyTo(file.AsSpan((int)offset));
-        world.Files[fileName] = file;
-        return Task.CompletedTask;
-    }
-
-    public Task FlushAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

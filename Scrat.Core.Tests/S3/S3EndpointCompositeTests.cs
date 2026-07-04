@@ -65,6 +65,11 @@ public class S3EndpointCompositeTests
         await medium.Reader.DidNotReceive().BucketExistsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
+    // CR: coverage gap — every endpoint here is a mock with an explicit ResolveBucketName return, so the
+    //   real routing behaviours are never exercised: (1) that Small.ResolveBucketName matches almost any
+    //   key and therefore always wins ordering (the misrouting flagged in S3EndpointComposite), and
+    //   (2) the "bucket exists but the key is absent from it" case. Add tests with the concrete
+    //   Small/Medium/Large endpoints + a FakeS3Reader to pin down the actual selection semantics.
     [Fact]
     public async Task Returns_null_when_no_cluster_holds_the_key()
     {

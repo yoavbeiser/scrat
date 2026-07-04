@@ -1,7 +1,7 @@
 using Scrat.Core.Models;
 
 namespace Scrat.Core.Abstractions;
-
+// CR: every interface should be under the specific folder and not Abstractions
 /// <summary>Converts raw S3 bytes into <see cref="ExportData"/>. One implementation per endpoint wire format.</summary>
 public interface IDataDeserializer
 {

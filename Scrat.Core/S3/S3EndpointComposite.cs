@@ -28,6 +28,11 @@ public sealed class S3EndpointComposite : IS3EndpointComposite
             }
 
             // CR: checking if bucket exists is not the same as key exists
+            // CR: SmallS3Endpoint.ResolveBucketName returns non-null for ANY non-empty key, so Small
+            //     is always probed first (ordered ascending). If its bucket exists, it wins even for
+            //     keys meant for Medium/Large -> misrouting. Combined with the note above, a key that
+            //     is genuinely absent from the winning bucket surfaces as Failed (GetObject 404),
+            //     never NotFound. Consider probing the object (HEAD key), not just the bucket.
             if (await endpoint.Reader.BucketExistsAsync(bucket, cancellationToken).ConfigureAwait(false))
             {
                 _logger.LogDebug("Key {Key} resolved to {Category} cluster (bucket {Bucket})", key, endpoint.HandledSizeCategory, bucket);
